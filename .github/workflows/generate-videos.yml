@@ -11,7 +11,7 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -29,19 +29,19 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb ffmpeg
+          sudo apt-get install -y ffmpeg
 
-      - name: Install Chromium deps
+      - name: Install Chromium
         run: npx puppeteer browsers install chrome
 
       - name: Start dev server
         run: |
           npx vite --host 0.0.0.0 --port 3000 &
           sleep 5
-          curl -s http://localhost:3000 > /dev/null && echo "✅ Dev server ready" || echo "❌ Dev server failed"
+          curl -sf http://localhost:3000 > /dev/null && echo "✅ Dev server ready"
 
-      - name: Record all videos
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1920x24" node record-all.mjs
+      - name: Record all videos (frame-by-frame)
+        run: node record-all.mjs
         env:
           CI: true
 
@@ -49,9 +49,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: videos-${{ github.run_number }}
-          path: |
-            output/*.mp4
-            output/*.webm
+          path: output/*.mp4
           retention-days: 30
 
       - name: Keepalive commit

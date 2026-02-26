@@ -27,7 +27,13 @@ let ambientLoop = null;
 
 export async function initAudio() {
     if (initialized) return;
-    await Tone.start();
+    try {
+        await Tone.start();
+    } catch (e) {
+        console.warn('Audio init failed (headless?), continuing without sound');
+        initialized = true;
+        return;
+    }
 
     // ============================================================
     // AMBIENT DRONE — 432Hz tuning, alpha wave state
