@@ -40,6 +40,7 @@ async function main() {
 
     const browser = await puppeteer.launch({
         headless: 'new',
+        protocolTimeout: 180000,
         args: [
             `--window-size=${WIDTH},${HEIGHT}`,
             '--no-sandbox',
@@ -113,10 +114,10 @@ async function main() {
     console.log(`\n📸 Capturing ${TOTAL_FRAMES} frames...\n`);
 
     for (let frame = 0; frame < TOTAL_FRAMES; frame++) {
-        // Advance animation by 2 ticks (60fps animation → 30fps capture)
-        for (let t = 0; t < ticksPerFrame; t++) {
-            await page.evaluate((dt) => window.__tick(dt), frameDt);
-        }
+        // Advance animation by 2 ticks in a single evaluate call (reduces CDP messages)
+        await page.evaluate((dt, ticks) => {
+            for (let t = 0; t < ticks; t++) window.__tick(dt);
+        }, frameDt, ticksPerFrame);
 
         // Screenshot
         const frameNum = String(frame).padStart(5, '0');
