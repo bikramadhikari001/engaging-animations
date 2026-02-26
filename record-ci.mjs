@@ -106,29 +106,45 @@ async function main() {
         await new Promise(r => setTimeout(r, 50));
     }
 
-    // Capture frames
+    // Capture frames using canvas.toDataURL (much faster than page.screenshot)
     const startTime = Date.now();
-    const frameDt = 1000 / 60; // Animation expects 60fps ticks
-    const ticksPerFrame = 2; // 60fps animation / 30fps capture = 2 ticks per frame
+    const frameDt = 1000 / 60;
+    const ticksPerFrame = 2; // 2 animation ticks per captured frame
 
     console.log(`\n📸 Capturing ${TOTAL_FRAMES} frames...\n`);
 
     for (let frame = 0; frame < TOTAL_FRAMES; frame++) {
-        // Advance animation by 2 ticks in a single evaluate call (reduces CDP messages)
+        // Advance animation
         await page.evaluate((dt, ticks) => {
             for (let t = 0; t < ticks; t++) window.__tick(dt);
         }, frameDt, ticksPerFrame);
 
-        // Screenshot
-        const frameNum = String(frame).padStart(5, '0');
-        await page.screenshot({
-            path: path.join(FRAMES_DIR, `frame_${frameNum}.jpg`),
-            type: 'jpeg',
-            quality: 90,
-        });
+        // Extract canvas as JPEG data URL (WAY faster than page.screenshot)
+        let retries = 3;
+        while (retries > 0) {
+            try {
+                const dataUrl = await page.evaluate(() => {
+                    const c = document.querySelector('canvas');
+                    return c ? c.toDataURL('image/jpeg', 0.85) : null;
+                });
+                if (dataUrl) {
+                    const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
+                    const frameNum = String(frame).padStart(5, '0');
+                    fs.writeFileSync(
+                        path.join(FRAMES_DIR, `frame_${frameNum}.jpg`),
+                        Buffer.from(base64, 'base64')
+                    );
+                }
+                break;
+            } catch (e) {
+                retries--;
+                if (retries === 0) console.warn(`\n⚠️ Frame ${frame} skipped: ${e.message}`);
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
 
         // Progress
-        if (frame % 30 === 0 || frame === TOTAL_FRAMES - 1) {
+        if (frame % 60 === 0 || frame === TOTAL_FRAMES - 1) {
             const pct = Math.floor((frame / TOTAL_FRAMES) * 100);
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
             process.stdout.write(`\r📸 Frame ${frame + 1}/${TOTAL_FRAMES} (${pct}%) — ${elapsed}s`);
