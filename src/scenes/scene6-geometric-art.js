@@ -36,7 +36,7 @@ export function createScene(container) {
     for (let i = 0; i < numLayers; i++) {
         layers.push({
             multiplier: baseMultiplier + i * (2 + Math.random() * 5),
-            opacity: 0.35 - i * 0.10,
+            opacity: 0.55 - i * 0.12,
             radiusScale: 1 - i * 0.12,
         });
     }
@@ -81,7 +81,7 @@ export function createScene(container) {
         ctx.fill();
         ctx.beginPath();
         ctx.arc(x, y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
         ctx.fill();
     }
 
@@ -106,12 +106,12 @@ export function createScene(container) {
 
             ctx.beginPath();
             ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
             ctx.fill();
 
             ctx.beginPath();
             ctx.arc(cx, cy, radius, -Math.PI / 2, angle);
-            ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+            ctx.strokeStyle = 'rgba(255,255,255,0.85)';
             ctx.lineWidth = 1.5;
             ctx.stroke();
 
@@ -124,21 +124,21 @@ export function createScene(container) {
         if (circleProgress >= 1) {
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
             ctx.lineWidth = 1.5;
             ctx.stroke();
 
             for (let i = 1; i <= innerCircleCount; i++) {
                 ctx.beginPath();
                 ctx.arc(cx, cy, radius * (1 - i * 0.25), 0, Math.PI * 2);
-                ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
                 ctx.lineWidth = 0.5;
                 ctx.stroke();
             }
 
             ctx.beginPath();
             ctx.arc(cx, cy, 2, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
             ctx.fill();
         }
 

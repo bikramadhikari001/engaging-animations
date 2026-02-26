@@ -17,6 +17,7 @@
  * Calm/Headspace ambient design principles, real cradle audio analysis.
  */
 import * as Tone from 'tone';
+window.Tone = Tone; // expose for Puppeteer audio capture
 
 let initialized = false;
 let synths = {};
@@ -214,4 +215,78 @@ export function collisionSound(speed, type = 'tap') {
 export function popSound() {
     if (!initialized) return;
     synths.pop.triggerAttackRelease('C3', '16n');
+}
+
+// ============================================================
+// UPBEAT BACKGROUND — Driving beat with BPM escalation
+// ============================================================
+
+let beatPlaying = false;
+let beatLoop = null;
+
+export function startBeat() {
+    if (!initialized || beatPlaying) return;
+    beatPlaying = true;
+
+    const kick = new Tone.MembraneSynth({
+        pitchDecay: 0.05, octaves: 4,
+        envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 },
+        volume: -12,
+    }).toDestination();
+
+    const hat = new Tone.MetalSynth({
+        frequency: 400,
+        envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
+        harmonicity: 5, modulationIndex: 32, resonance: 4000, octaves: 1.5,
+        volume: -20,
+    }).toDestination();
+
+    const snare = new Tone.NoiseSynth({
+        noise: { type: 'white' },
+        envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
+        volume: -16,
+    }).toDestination();
+
+    Tone.getTransport().bpm.value = 100; // start slow
+
+    const kickPart = new Tone.Loop((time) => {
+        kick.triggerAttackRelease('C1', '8n', time);
+    }, '4n');
+    kickPart.start(0);
+
+    const snarePart = new Tone.Loop((time) => {
+        snare.triggerAttackRelease('8n', time);
+    }, '4n');
+    snarePart.start('8n');
+
+    const hatPart = new Tone.Loop((time) => {
+        hat.volume.value = -20 + (Math.random() * 4 - 2);
+        hat.triggerAttackRelease('32n', time);
+    }, '8n');
+    hatPart.start(0);
+
+    Tone.getTransport().start();
+    beatLoop = { kick, hat, snare, kickPart, snarePart, hatPart };
+}
+
+export function setBeatBPM(bpm) {
+    if (!beatPlaying) return;
+    Tone.getTransport().bpm.rampTo(bpm, 0.5);
+}
+
+export function stopBeat() {
+    beatPlaying = false;
+    if (beatLoop) {
+        Tone.getTransport().stop();
+        beatLoop.kickPart.stop();
+        beatLoop.snarePart.stop();
+        beatLoop.hatPart.stop();
+        beatLoop.kick.dispose();
+        beatLoop.hat.dispose();
+        beatLoop.snare.dispose();
+        beatLoop.kickPart.dispose();
+        beatLoop.snarePart.dispose();
+        beatLoop.hatPart.dispose();
+        beatLoop = null;
+    }
 }

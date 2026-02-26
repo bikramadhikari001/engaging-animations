@@ -2,7 +2,7 @@
  * Main entry — Scene loader and manager
  * Loads 6 animation scenes.
  */
-import { initAudio, stopAmbient } from './utils/sound.js';
+import { initAudio, stopAmbient, stopBeat } from './utils/sound.js';
 
 import { createScene as scene1 } from './scenes/scene1-plinko.js';
 import { createScene as scene2 } from './scenes/scene2-container-fill.js';
@@ -10,8 +10,9 @@ import { createScene as scene3 } from './scenes/scene3-newtons-cradle.js';
 import { createScene as scene4 } from './scenes/scene4-ball-splitter.js';
 import { createScene as scene5 } from './scenes/scene5-funnel-cascade.js';
 import { createScene as scene6 } from './scenes/scene6-geometric-art.js';
+import { createScene as scene7 } from './scenes/scene7-ping-pong.js';
 
-const scenes = [scene1, scene2, scene3, scene4, scene5, scene6];
+const scenes = [scene1, scene2, scene3, scene4, scene5, scene6, scene7];
 let currentSceneIndex = 0;
 let currentScene = null;
 let audioStarted = false;
@@ -53,6 +54,7 @@ function updateActiveButton() {
 
 function loadScene(index) {
     stopAmbient();
+    stopBeat();
     if (currentScene && currentScene.destroy) {
         currentScene.destroy();
         currentScene = null;
