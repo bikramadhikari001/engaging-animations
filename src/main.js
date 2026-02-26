@@ -1,6 +1,6 @@
 /**
  * Main entry — Scene loader and manager
- * Loads 5 physics-based animation scenes powered by Matter.js.
+ * Loads 6 animation scenes.
  */
 import { initAudio, stopAmbient } from './utils/sound.js';
 
@@ -9,8 +9,9 @@ import { createScene as scene2 } from './scenes/scene2-container-fill.js';
 import { createScene as scene3 } from './scenes/scene3-newtons-cradle.js';
 import { createScene as scene4 } from './scenes/scene4-ball-splitter.js';
 import { createScene as scene5 } from './scenes/scene5-funnel-cascade.js';
+import { createScene as scene6 } from './scenes/scene6-geometric-art.js';
 
-const scenes = [scene1, scene2, scene3, scene4, scene5];
+const scenes = [scene1, scene2, scene3, scene4, scene5, scene6];
 let currentSceneIndex = 0;
 let currentScene = null;
 let audioStarted = false;
@@ -68,5 +69,6 @@ window.__autoStart = async () => {
     overlay.classList.add('hidden');
     const controls = document.getElementById('controls');
     if (controls) controls.style.display = 'none';
-    loadScene(2); // Load Newton's Cradle (index 2)
+    const sceneIdx = window.__recordScene ?? 2;
+    loadScene(sceneIdx);
 };
