@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Satisfying Physics Simulations</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <div id="start-overlay">
+      <div class="start-content">
+        <div class="start-icon">●</div>
+        <p>Tap to start</p>
+      </div>
+    </div>
+
+    <div id="controls">
+      <div id="scene-selector">
+        <button class="scene-btn active" data-scene="1">
+          <span class="scene-icon">▽</span>
+          <span class="scene-label">Plinko</span>
+        </button>
+        <button class="scene-btn" data-scene="2">
+          <span class="scene-icon">◡</span>
+          <span class="scene-label">Fill</span>
+        </button>
+        <button class="scene-btn" data-scene="3">
+          <span class="scene-icon">◯</span>
+          <span class="scene-label">Cradle</span>
+        </button>
+        <button class="scene-btn" data-scene="4">
+          <span class="scene-icon">◉</span>
+          <span class="scene-label">Split</span>
+        </button>
+        <button class="scene-btn" data-scene="5">
+          <span class="scene-icon">⊽</span>
+          <span class="scene-label">Funnel</span>
+        </button>
+      </div>
+
+      <button id="replay-btn" title="Restart">↻</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

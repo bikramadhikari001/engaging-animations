@@ -1,0 +1,62 @@
+# Language-Agnostic .gitignore
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Build artifacts (language-specific - update after /bootstrap)
+dist/
+build/
+out/
+target/
+bin/
+
+# Dependencies (language-specific - update after /bootstrap)
+node_modules/
+vendor/
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Antigravity/Gemini brain (conversation-specific, not project code)
+.gemini/antigravity/brain/
+
+# Recorded video output
+output/
