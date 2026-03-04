@@ -21,7 +21,6 @@ from googleapiclient.http import MediaFileUpload
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets",
 ]
 
 # Look for credentials in multiple locations
