@@ -1,17 +1,17 @@
-name: Generate Videos
+name: Generate & Publish Video
 
 on:
   workflow_dispatch: # Manual trigger
   schedule:
-    - cron: '0 0 * * 0' # Weekly on Sunday at midnight UTC
+    - cron: '0 */2 * * *' # Every 2 hours
 
 permissions:
   contents: write
 
 jobs:
-  generate:
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -23,7 +23,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
+      - name: Install Node dependencies
         run: npm ci
 
       - name: Install system deps
@@ -31,8 +31,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python Google API deps
+        run: pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
       - name: Install Chromium
         run: npx puppeteer browsers install chrome
+
+      - name: Setup Google credentials
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > /tmp/credentials.json
+          echo '${{ secrets.GOOGLE_TOKEN_JSON }}' > /tmp/token.json
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
 
       - name: Start dev server
         run: |
@@ -40,17 +56,19 @@ jobs:
           sleep 5
           curl -sf http://localhost:3000 > /dev/null && echo "✅ Dev server ready"
 
-      - name: Record all videos (frame-by-frame)
-        run: node record-all.mjs
+      - name: Generate & publish video
+        run: node publish.mjs
         env:
           CI: true
+          GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
 
-      - name: Upload videos
+      - name: Upload video artifact
         uses: actions/upload-artifact@v4
         with:
-          name: videos-${{ github.run_number }}
+          name: video-${{ github.run_number }}
           path: output/*.mp4
-          retention-days: 30
+          retention-days: 7
 
       - name: Keepalive commit
         run: |
