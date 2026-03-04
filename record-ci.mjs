@@ -40,7 +40,7 @@ async function main() {
 
     const browser = await puppeteer.launch({
         headless: 'new',
-        protocolTimeout: 180000,
+        protocolTimeout: 300000, // 5 min — pong scene needs more time
         args: [
             `--window-size=${WIDTH},${HEIGHT}`,
             '--no-sandbox',
@@ -160,8 +160,9 @@ async function main() {
     const audioTempFile = path.join(OUTPUT_DIR, `${FILE_NAME}-video-only.mp4`);
 
     if (SCENE_INDEX + 1 === 7) {
-        // Ping pong: beat pattern (kick + hat)
-        execSync(`ffmpeg -y -f lavfi -i "sine=frequency=55:duration=${DURATION}" -f lavfi -i "sine=frequency=800:duration=${DURATION}" -filter_complex "[0]volume=0.4[kick];[1]apulsator=mode=sine:hz=4.3:amount=1,volume=0.15[hat];[kick][hat]amix=inputs=2:duration=longest" -c:a aac -b:a 128k "${audioFile}"`, { stdio: 'pipe' });
+        // Ping pong: beat + random ping sounds (simulates ball hits)
+        // Layer 1: kick drum beat, Layer 2: hi-hat pulse, Layer 3: ball-hit ping sounds
+        execSync(`ffmpeg -y -f lavfi -i "sine=frequency=55:duration=${DURATION}" -f lavfi -i "sine=frequency=800:duration=${DURATION}" -f lavfi -i "anoisesrc=d=${DURATION}:c=pink:a=0.3" -filter_complex "[0]volume=0.35[kick];[1]apulsator=mode=sine:hz=4.3:amount=1,volume=0.12[hat];[2]bandpass=f=2000:w=800,apulsator=mode=sine:hz=2.1:amount=1,volume=0.25[ping];[kick][hat][ping]amix=inputs=3:duration=longest" -c:a aac -b:a 128k "${audioFile}"`, { stdio: 'pipe' });
     } else {
         // Scenes 3 & 6: 432Hz ambient drone
         execSync(`ffmpeg -y -f lavfi -i "sine=frequency=432:duration=${DURATION}" -f lavfi -i "sine=frequency=216:duration=${DURATION}" -filter_complex "[0]volume=0.15[a];[1]volume=0.1[b];[a][b]amix=inputs=2:duration=longest" -c:a aac -b:a 128k "${audioFile}"`, { stdio: 'pipe' });

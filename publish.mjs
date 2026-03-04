@@ -7,6 +7,8 @@
  * 3. Upload to Google Drive + make public
  * 4. Append title + download link to Google Sheet
  *
+ * If recording fails (e.g. pong timeout), retries with a different scene.
+ *
  * Usage:
  *   node publish.mjs                    # full pipeline
  *   node publish.mjs --dry-run          # preview title without recording/uploading
@@ -84,18 +86,55 @@ const SCENES = [
 const GLOBAL_TAGS = '#fyp #foryou #foryoupage #viral #trending #watchthis #animation #satisfying';
 
 // ── Pick random ────────────────────────────────────────────────
-function pickScene(forceScene) {
+function pickScene(forceScene, exclude = []) {
     if (forceScene) {
         return SCENES.find(s => s.scene === forceScene) || SCENES[0];
     }
-    return SCENES[Math.floor(Math.random() * SCENES.length)];
+    const available = SCENES.filter(s => !exclude.includes(s.scene));
+    if (available.length === 0) return SCENES[0]; // fallback
+    return available[Math.floor(Math.random() * available.length)];
 }
 
 function pickTitle(scene) {
     const title = scene.titles[Math.floor(Math.random() * scene.titles.length)];
-    // Combine: title + scene tags + 3-4 random global tags
     const globalTags = GLOBAL_TAGS.split(' ').sort(() => Math.random() - 0.5).slice(0, 4).join(' ');
     return `${title}\n\n${scene.hashtags} ${globalTags}`;
+}
+
+function generateVideo(scene) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fileName = `${scene.name}-${timestamp}`;
+    const mp4File = path.resolve('output', `${fileName}.mp4`);
+
+    const IS_CI = !!process.env.CI;
+    const script = IS_CI ? 'record-ci.mjs' : 'record.mjs';
+
+    execSync(`node ${script} ${scene.scene} ${fileName}`, {
+        stdio: 'inherit',
+        timeout: IS_CI ? 300_000 : 120_000,
+    });
+
+    if (!fs.existsSync(mp4File)) {
+        throw new Error(`Expected file not found: ${mp4File}`);
+    }
+    return mp4File;
+}
+
+function uploadToSheet(mp4File, title) {
+    const skill = path.join(process.env.HOME || '~', '.gemini/antigravity/skills/google-docs');
+    let python = path.join(skill, '.venv/bin/python');
+    if (!fs.existsSync(python)) python = path.join(skill, 'venv/bin/python');
+    if (!fs.existsSync(python)) python = 'python3';
+
+    const publishScript = path.resolve('scripts/publish_to_drive.py');
+
+    // Escape title for shell (replace quotes)
+    const safeTitle = title.replace(/"/g, '\\"');
+
+    execSync(
+        `${python} "${publishScript}" "${mp4File}" "${safeTitle}" --folder "${DRIVE_FOLDER}" --sheet "${SHEET_ID}"`,
+        { stdio: 'inherit', timeout: 60_000 }
+    );
 }
 
 // ── Main ───────────────────────────────────────────────────────
@@ -104,71 +143,59 @@ const dryRun = args.includes('--dry-run');
 const forceSceneIdx = args.indexOf('--scene');
 const forceScene = forceSceneIdx >= 0 ? parseInt(args[forceSceneIdx + 1]) : null;
 
-const scene = pickScene(forceScene);
-const title = pickTitle(scene);
+const MAX_RETRIES = 2;
+let excludeScenes = [];
+let success = false;
 
-console.log('═'.repeat(60));
-console.log('🎬 TIKTOK PUBLISH PIPELINE');
-console.log('═'.repeat(60));
-console.log(`\n📹 Scene: ${scene.scene} (${scene.name})`);
-console.log(`📝 Title: ${title}\n`);
+for (let attempt = 0; attempt <= MAX_RETRIES && !success; attempt++) {
+    const scene = pickScene(forceScene, excludeScenes);
+    const title = pickTitle(scene);
 
-if (dryRun) {
-    console.log('🔍 DRY RUN — no recording or upload');
-    process.exit(0);
+    console.log('═'.repeat(60));
+    console.log(`🎬 TIKTOK PUBLISH PIPELINE${attempt > 0 ? ` (retry ${attempt})` : ''}`);
+    console.log('═'.repeat(60));
+    console.log(`\n📹 Scene: ${scene.scene} (${scene.name})`);
+    console.log(`📝 Title: ${title}\n`);
+
+    if (dryRun) {
+        console.log('🔍 DRY RUN — no recording or upload');
+        process.exit(0);
+    }
+
+    // 1. Generate video
+    console.log('─'.repeat(60));
+    console.log('📸 Step 1: Generating video...\n');
+
+    let mp4File;
+    try {
+        mp4File = generateVideo(scene);
+    } catch (e) {
+        console.error(`\n⚠️ Video generation failed for ${scene.name}: ${e.message}`);
+        excludeScenes.push(scene.scene);
+        if (attempt < MAX_RETRIES) {
+            console.log(`\n🔄 Retrying with a different scene...\n`);
+            continue;
+        }
+        console.error('❌ All retries exhausted');
+        process.exit(1);
+    }
+
+    const fileSize = (fs.statSync(mp4File).size / 1048576).toFixed(1);
+    console.log(`\n✅ Video: ${mp4File} (${fileSize} MB)`);
+
+    // 2. Upload to Drive + Sheet
+    console.log('\n' + '─'.repeat(60));
+    console.log('☁️  Step 2: Uploading to Google Drive + Sheet...\n');
+
+    try {
+        uploadToSheet(mp4File, title);
+    } catch (e) {
+        console.error(`\n❌ Upload failed: ${e.message}`);
+        process.exit(1);
+    }
+
+    success = true;
+    console.log('\n' + '═'.repeat(60));
+    console.log('🎉 PUBLISHED SUCCESSFULLY!');
+    console.log('═'.repeat(60));
 }
-
-// 1. Generate video
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-const fileName = `${scene.name}-${timestamp}`;
-const mp4File = path.resolve('output', `${fileName}.mp4`);
-
-console.log('─'.repeat(60));
-console.log('📸 Step 1: Generating video...\n');
-
-const IS_CI = !!process.env.CI;
-const script = IS_CI ? 'record-ci.mjs' : 'record.mjs';
-
-try {
-    execSync(`node ${script} ${scene.scene} ${fileName}`, {
-        stdio: 'inherit',
-        timeout: IS_CI ? 300_000 : 120_000,
-    });
-} catch (e) {
-    console.error(`\n❌ Video generation failed: ${e.message}`);
-    process.exit(1);
-}
-
-if (!fs.existsSync(mp4File)) {
-    console.error(`❌ Expected file not found: ${mp4File}`);
-    process.exit(1);
-}
-
-const fileSize = (fs.statSync(mp4File).size / 1048576).toFixed(1);
-console.log(`\n✅ Video: ${mp4File} (${fileSize} MB)`);
-
-// 2. Upload to Drive + Sheet
-console.log('\n' + '─'.repeat(60));
-console.log('☁️  Step 2: Uploading to Google Drive + Sheet...\n');
-
-// Find Python with google API libs
-const skill = path.join(process.env.HOME || '~', '.gemini/antigravity/skills/google-docs');
-let python = path.join(skill, '.venv/bin/python');
-if (!fs.existsSync(python)) python = path.join(skill, 'venv/bin/python');
-if (!fs.existsSync(python)) python = 'python3'; // CI will install deps system-wide
-
-const publishScript = path.resolve('scripts/publish_to_drive.py');
-
-try {
-    execSync(
-        `${python} "${publishScript}" "${mp4File}" "${title}" --folder "${DRIVE_FOLDER}" --sheet "${SHEET_ID}"`,
-        { stdio: 'inherit', timeout: 60_000 }
-    );
-} catch (e) {
-    console.error(`\n❌ Upload failed: ${e.message}`);
-    process.exit(1);
-}
-
-console.log('\n' + '═'.repeat(60));
-console.log('🎉 PUBLISHED SUCCESSFULLY!');
-console.log('═'.repeat(60));
