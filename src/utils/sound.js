@@ -129,6 +129,33 @@ export async function initAudio() {
         volume: -14,
     }).connect(effects.reverb);
 
+    // ============================================================
+    // PONG HIT SOUNDS — Loud & punchy, cut through the beat
+    // ============================================================
+
+    // Paddle hit: sharp pop (like table tennis)
+    synths.pongPaddle = new Tone.MembraneSynth({
+        pitchDecay: 0.02,
+        octaves: 6,
+        envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.03 },
+        volume: -4,
+    }).toDestination();
+
+    // Wall bounce: deeper thump
+    synths.pongWall = new Tone.MembraneSynth({
+        pitchDecay: 0.04,
+        octaves: 3,
+        envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.06 },
+        volume: -6,
+    }).toDestination();
+
+    // Smash: explosive hit
+    synths.pongSmash = new Tone.NoiseSynth({
+        noise: { type: 'white' },
+        envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.03 },
+        volume: -2,
+    }).toDestination();
+
     initialized = true;
 }
 
@@ -221,6 +248,37 @@ export function collisionSound(speed, type = 'tap') {
 export function popSound() {
     if (!initialized) return;
     synths.pop.triggerAttackRelease('C3', '16n');
+}
+
+// ============================================================
+// PONG HIT SOUND — Loud, punchy sounds that cut through the beat
+// ============================================================
+
+let lastPongSoundTime = 0;
+
+export function pongHitSound(type = 'paddle') {
+    if (!initialized || !synths.pongPaddle) return;
+    const now = Date.now();
+    if (now - lastPongSoundTime < 30) return;
+    lastPongSoundTime = now;
+
+    try {
+        if (type === 'paddle') {
+            // Sharp pop — like table tennis
+            const pitch = 200 + Math.random() * 100;
+            synths.pongPaddle.triggerAttackRelease(pitch, '32n');
+        } else if (type === 'wall') {
+            // Deep thump
+            synths.pongWall.triggerAttackRelease(60 + Math.random() * 30, '16n');
+        } else if (type === 'smash') {
+            // Explosive hit
+            synths.pongSmash.triggerAttackRelease('16n');
+            // Also layer a loud pop
+            synths.pongPaddle.volume.value = -1;
+            synths.pongPaddle.triggerAttackRelease(350, '32n');
+            synths.pongPaddle.volume.value = -4;
+        }
+    } catch (e) { /* ignore */ }
 }
 
 // ============================================================

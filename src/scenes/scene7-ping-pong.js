@@ -4,7 +4,7 @@
  * Left/Right layout with all 15 TikTok engagement features.
  * Uses Bebas Neue / Oswald sports fonts.
  */
-import { startBeat, setBeatBPM, collisionSound } from '../utils/sound.js';
+import { startBeat, setBeatBPM, pongHitSound } from '../utils/sound.js';
 
 const F_TITLE = '"Bebas Neue", sans-serif';
 const F_BODY = '"Oswald", sans-serif';
@@ -181,11 +181,11 @@ export function createScene(container) {
         // Top/bottom wall bounce
         if (ball.y - ball.r < 0) {
             ball.y = ball.r; ball.vy = Math.abs(ball.vy);
-            collisionSound(2, 'wall');
+            pongHitSound('wall');
         }
         if (ball.y + ball.r > H) {
             ball.y = H - ball.r; ball.vy = -Math.abs(ball.vy);
-            collisionSound(2, 'wall');
+            pongHitSound('wall');
         }
 
         // Left paddle hit
@@ -209,6 +209,7 @@ export function createScene(container) {
                 shakeTimer = 6; shakeIntensity = 8;
                 showCommentary('smash');
                 spawnParticles(ball.x, ball.y, '255,200,100', 8);
+                pongHitSound('smash');
             }
 
             ball.vx = Math.abs(speed * Math.cos(angle));
@@ -216,7 +217,7 @@ export function createScene(container) {
             ball.spin = (hitPos - 0.5) * 2; // #11
             rallyCount++;
             totalRallies++;
-            collisionSound(speed, 'ball');
+            pongHitSound('paddle');
             if (!isSmash) { shakeTimer = 3; shakeIntensity = 2 + Math.min(rallyCount, 5); }
 
             if (rallyCount >= 5 && rallyCount % 3 === 0) showCommentary('rally');
@@ -243,6 +244,7 @@ export function createScene(container) {
                 shakeTimer = 6; shakeIntensity = 8;
                 showCommentary('smash');
                 spawnParticles(ball.x, ball.y, '255,200,100', 8);
+                pongHitSound('smash');
             }
 
             ball.vx = -Math.abs(speed * Math.cos(angle));
@@ -250,7 +252,7 @@ export function createScene(container) {
             ball.spin = (hitPos - 0.5) * 2;
             rallyCount++;
             totalRallies++;
-            collisionSound(speed, 'ball');
+            pongHitSound('paddle');
             if (!isSmash) { shakeTimer = 3; shakeIntensity = 2 + Math.min(rallyCount, 5); }
 
             if (rallyCount >= 5 && rallyCount % 3 === 0) showCommentary('rally');
@@ -264,7 +266,7 @@ export function createScene(container) {
             gamePhase = 'point-scored';
             pointPauseTimer = 50;
             shakeTimer = 12; shakeIntensity = matchPoint ? 14 : 8;
-            collisionSound(12, 'wall');
+            pongHitSound('wall');
             showCommentary('score');
             scoreFlashSide = 'right'; scoreFlashTimer = 30;
             spawnParticles(0, ball.y, '255,120,100', 20);
@@ -276,7 +278,7 @@ export function createScene(container) {
             gamePhase = 'point-scored';
             pointPauseTimer = 50;
             shakeTimer = 12; shakeIntensity = matchPoint ? 14 : 8;
-            collisionSound(12, 'wall');
+            pongHitSound('wall');
             showCommentary('score');
             scoreFlashSide = 'left'; scoreFlashTimer = 30;
             spawnParticles(W, ball.y, '100,180,255', 20);
