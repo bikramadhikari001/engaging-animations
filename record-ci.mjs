@@ -152,6 +152,14 @@ async function main() {
     }
 
     console.log('\n\n⏹️  Capture complete!');
+
+    // Collect audio events from the scene (pong logs collisions)
+    let audioEvents = [];
+    try {
+        audioEvents = await page.evaluate(() => window.__audioEvents || []);
+        console.log(`🎵 Collected ${audioEvents.length} audio events`);
+    } catch (e) { /* no events */ }
+
     await browser.close();
 
     // Generate audio track
@@ -159,9 +167,69 @@ async function main() {
     const audioFile = path.join(OUTPUT_DIR, `${FILE_NAME}-audio.m4a`);
     const audioTempFile = path.join(OUTPUT_DIR, `${FILE_NAME}-video-only.mp4`);
 
-    if (SCENE_INDEX + 1 === 7) {
-        // Ping pong: beat + random ping sounds (simulates ball hits)
-        // Layer 1: kick drum beat, Layer 2: hi-hat pulse, Layer 3: ball-hit ping sounds
+    if (SCENE_INDEX + 1 === 7 && audioEvents.length > 0) {
+        // Event-driven pong audio: generate per-event sounds at exact timestamps
+        const sfxDir = path.join(OUTPUT_DIR, `sfx-${FILE_NAME}`);
+        if (fs.existsSync(sfxDir)) fs.rmSync(sfxDir, { recursive: true });
+        fs.mkdirSync(sfxDir, { recursive: true });
+
+        // Generate master sound effects (short samples)
+        const paddleSfx = path.join(sfxDir, 'paddle.wav');
+        const wallSfx = path.join(sfxDir, 'wall.wav');
+        const smashSfx = path.join(sfxDir, 'smash.wav');
+        const scoreSfx = path.join(sfxDir, 'score.wav');
+
+        // Paddle: sharp 2kHz ping (0.05s)
+        execSync(`ffmpeg -y -f lavfi -i "sine=frequency=2000:duration=0.05" -af "volume=0.8,afade=t=out:st=0.02:d=0.03" "${paddleSfx}"`, { stdio: 'pipe' });
+        // Wall: deep 80Hz thump (0.08s)
+        execSync(`ffmpeg -y -f lavfi -i "sine=frequency=80:duration=0.08" -af "volume=0.6,afade=t=out:st=0.03:d=0.05" "${wallSfx}"`, { stdio: 'pipe' });
+        // Smash: noise burst (0.12s)
+        execSync(`ffmpeg -y -f lavfi -i "anoisesrc=d=0.12:c=white:a=0.5" -af "bandpass=f=3000:w=2000,volume=1.0,afade=t=out:st=0.04:d=0.08" "${smashSfx}"`, { stdio: 'pipe' });
+        // Score: descending tone (0.3s)
+        execSync(`ffmpeg -y -f lavfi -i "sine=frequency=500:duration=0.3" -af "asetrate=44100*0.6,atempo=1.67,volume=0.7,afade=t=out:st=0.1:d=0.2" "${scoreSfx}"`, { stdio: 'pipe' });
+
+        // Generate a silent base track
+        const baseSilence = path.join(sfxDir, 'silence.wav');
+        execSync(`ffmpeg -y -f lavfi -i "anullsrc=r=44100:cl=mono" -t ${DURATION} "${baseSilence}"`, { stdio: 'pipe' });
+
+        // Build ffmpeg filter to mix all events at correct timestamps
+        // Group events and place them using adelay
+        const sfxMap = { paddle: paddleSfx, wall: wallSfx, smash: smashSfx, score: scoreSfx };
+        let inputs = [`-i "${baseSilence}"`]; // input 0 = silence base
+        let filterParts = [];
+        let mixInputs = ['[0]']; // start with silence
+
+        // Limit to 150 events to avoid ffmpeg command line overflow
+        const events = audioEvents.slice(0, 150);
+        console.log(`🔊 Mixing ${events.length} collision sounds...`);
+
+        for (let i = 0; i < events.length; i++) {
+            const ev = events[i];
+            const sfx = sfxMap[ev.type] || paddleSfx;
+            const delayMs = Math.max(0, Math.round(ev.t * 1000));
+            inputs.push(`-i "${sfx}"`);
+            filterParts.push(`[${i + 1}]adelay=${delayMs}|${delayMs},apad=whole_dur=${DURATION}[e${i}]`);
+            mixInputs.push(`[e${i}]`);
+        }
+
+        // Also add a subtle beat underneath
+        const beatFile = path.join(sfxDir, 'beat.wav');
+        execSync(`ffmpeg -y -f lavfi -i "sine=frequency=55:duration=${DURATION}" -f lavfi -i "sine=frequency=800:duration=${DURATION}" -filter_complex "[0]volume=0.2[k];[1]apulsator=mode=sine:hz=3:amount=1,volume=0.08[h];[k][h]amix=inputs=2:duration=longest" "${beatFile}"`, { stdio: 'pipe' });
+        inputs.push(`-i "${beatFile}"`);
+        const beatIdx = events.length + 1;
+        mixInputs.push(`[${beatIdx}]`);
+
+        const totalMixInputs = mixInputs.length;
+        const filterGraph = filterParts.length > 0
+            ? filterParts.join(';') + `;${mixInputs.join('')}amix=inputs=${totalMixInputs}:duration=longest:normalize=0`
+            : `${mixInputs.join('')}amix=inputs=${totalMixInputs}:duration=longest:normalize=0`;
+
+        execSync(`ffmpeg -y ${inputs.join(' ')} -filter_complex "${filterGraph}" -c:a aac -b:a 128k "${audioFile}"`, { stdio: 'pipe' });
+
+        // Cleanup sfx
+        fs.rmSync(sfxDir, { recursive: true });
+    } else if (SCENE_INDEX + 1 === 7) {
+        // Fallback pong audio (no events captured)
         execSync(`ffmpeg -y -f lavfi -i "sine=frequency=55:duration=${DURATION}" -f lavfi -i "sine=frequency=800:duration=${DURATION}" -f lavfi -i "anoisesrc=d=${DURATION}:c=pink:a=0.3" -filter_complex "[0]volume=0.35[kick];[1]apulsator=mode=sine:hz=4.3:amount=1,volume=0.12[hat];[2]bandpass=f=2000:w=800,apulsator=mode=sine:hz=2.1:amount=1,volume=0.25[ping];[kick][hat][ping]amix=inputs=3:duration=longest" -c:a aac -b:a 128k "${audioFile}"`, { stdio: 'pipe' });
     } else {
         // Scenes 3 & 6: 432Hz ambient drone

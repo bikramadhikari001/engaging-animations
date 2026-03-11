@@ -7,6 +7,20 @@
  */
 import { startAmbient } from '../utils/sound.js';
 
+// ── RANDOMIZATION ──
+const PEN_PALETTES = [
+    { line: '255,255,255', pen: 'rgba(255,255,255,0.9)', circle: 'rgba(255,255,255,0.85)', name: 'white' },
+    { line: '100,220,255', pen: 'rgba(100,220,255,0.9)', circle: 'rgba(100,220,255,0.85)', name: 'cyan' },
+    { line: '255,200,80', pen: 'rgba(255,200,80,0.9)', circle: 'rgba(255,200,80,0.85)', name: 'gold' },
+    { line: '80,255,150', pen: 'rgba(80,255,150,0.9)', circle: 'rgba(80,255,150,0.85)', name: 'emerald' },
+    { line: '255,120,120', pen: 'rgba(255,120,120,0.9)', circle: 'rgba(255,120,120,0.85)', name: 'coral' },
+    { line: '180,140,255', pen: 'rgba(180,140,255,0.9)', circle: 'rgba(180,140,255,0.85)', name: 'lavender' },
+];
+const BG_COLORS = [
+    '#000000', '#000510', '#050010', '#001008', '#080808',
+];
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
 export function createScene(container) {
     const canvas = document.createElement('canvas');
     container.appendChild(canvas);
@@ -20,6 +34,11 @@ export function createScene(container) {
     const cx = W / 2;
     const cy = H / 2;
     const radius = Math.min(W, H) * 0.28;
+
+    // Per-run randomization
+    const palette = pick(PEN_PALETTES);
+    const bgColor = pick(BG_COLORS);
+    const lineWidth = 0.3 + Math.random() * 0.5;  // 0.3-0.8
 
     let frameCount = 0;
     let running = true;
@@ -77,7 +96,7 @@ export function createScene(container) {
     function drawPen(x, y) {
         ctx.beginPath();
         ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillStyle = palette.pen;;
         ctx.fill();
         ctx.beginPath();
         ctx.arc(x, y, 8, 0, Math.PI * 2);
@@ -89,7 +108,7 @@ export function createScene(container) {
         if (!running) return;
         frameCount++;
 
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, W, H);
 
         // === PHASE 1: Draw circle with compass ===
@@ -111,7 +130,7 @@ export function createScene(container) {
 
             ctx.beginPath();
             ctx.arc(cx, cy, radius, -Math.PI / 2, angle);
-            ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+            ctx.strokeStyle = palette.circle;
             ctx.lineWidth = 1.5;
             ctx.stroke();
 
@@ -147,7 +166,7 @@ export function createScene(container) {
             ctx.beginPath();
             ctx.moveTo(line.x1, line.y1);
             ctx.lineTo(line.x2, line.y2);
-            ctx.strokeStyle = `rgba(255,255,255,${line.opacity})`;
+            ctx.strokeStyle = `rgba(${palette.line},${line.opacity})`;
             ctx.lineWidth = 0.5;
             ctx.stroke();
         }

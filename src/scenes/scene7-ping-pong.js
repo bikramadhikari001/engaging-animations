@@ -9,6 +9,29 @@ import { startBeat, setBeatBPM, pongHitSound } from '../utils/sound.js';
 const F_TITLE = '"Bebas Neue", sans-serif';
 const F_BODY = '"Oswald", sans-serif';
 
+// ── RANDOMIZATION POOLS ────────────────────────────
+const THEMES = [
+    { name: 'neon', left: 'rgba(0,255,200,', right: 'rgba(255,0,150,', bg1: '#0a0020', bg2: '#001a10', ball: '#00ffe0' },
+    { name: 'ice', left: 'rgba(100,200,255,', right: 'rgba(180,130,255,', bg1: '#000818', bg2: '#0a0030', ball: '#a0e0ff' },
+    { name: 'fire', left: 'rgba(255,180,30,', right: 'rgba(255,60,60,', bg1: '#1a0500', bg2: '#200000', ball: '#ffcc00' },
+    { name: 'jungle', left: 'rgba(100,255,120,', right: 'rgba(255,200,60,', bg1: '#001a00', bg2: '#0a1200', ball: '#80ff80' },
+    { name: 'sunset', left: 'rgba(255,140,50,', right: 'rgba(200,80,200,', bg1: '#1a0a00', bg2: '#0a001a', ball: '#ffaa50' },
+    { name: 'galaxy', left: 'rgba(150,100,255,', right: 'rgba(255,100,200,', bg1: '#05001a', bg2: '#100020', ball: '#c0a0ff' },
+    { name: 'vapor', left: 'rgba(255,100,200,', right: 'rgba(100,220,255,', bg1: '#0d001a', bg2: '#001020', ball: '#ff80d0' },
+    { name: 'cyber', left: 'rgba(0,255,100,', right: 'rgba(255,255,0,', bg1: '#000a00', bg2: '#0a0a00', ball: '#00ff60' },
+];
+const NAMES = ['ALPHA','OMEGA','GHOST','TURBO','BLAZE','NEON','VAPOR','STORM',
+    'FALCON','ZERO','TITAN','NOVA','APEX','VIPER','BOLT','FURY','SHADOW',
+    'SPARK','PULSE','GLITCH'];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function pickTwo(arr) {
+    const a = Math.floor(Math.random() * arr.length);
+    let b = Math.floor(Math.random() * (arr.length - 1));
+    if (b >= a) b++;
+    return [arr[a], arr[b]];
+}
+
 export function createScene(container) {
     const canvas = document.createElement('canvas');
     container.appendChild(canvas);
@@ -19,10 +42,18 @@ export function createScene(container) {
     canvas.width = W;
     canvas.height = H;
 
+    // ── Per-run randomization ──
+    const theme = pick(THEMES);
+    const [leftName, rightName] = pickTwo(NAMES);
+    const startSpeed = 6 + Math.random() * 3; // 6-9
+
     let frameCount = 0;
     let running = true;
     let animId;
     let GAME_DURATION = 3600;
+
+    // Audio event log for CI sound generation
+    window.__audioEvents = [];
 
     // LEFT / RIGHT paddles (original orientation)
     const paddleW = 14;
@@ -31,16 +62,16 @@ export function createScene(container) {
 
     const left = {
         x: paddleMargin, y: H / 2 - paddleH / 2,
-        score: 0, speed: 7, name: 'ALPHA', color: 'rgba(100,180,255,',
+        score: 0, speed: startSpeed, name: leftName, color: theme.left,
     };
     const right = {
         x: W - paddleMargin - paddleW, y: H / 2 - paddleH / 2,
-        score: 0, speed: 7, name: 'OMEGA', color: 'rgba(255,120,100,',
+        score: 0, speed: startSpeed, name: rightName, color: theme.right,
     };
 
     const ball = {
         x: W / 2, y: H / 2, r: 10,
-        vx: 0, vy: 0, speed: 7,
+        vx: 0, vy: 0, speed: startSpeed,
         spin: 0, trail: [],
     };
 
@@ -182,10 +213,12 @@ export function createScene(container) {
         if (ball.y - ball.r < 0) {
             ball.y = ball.r; ball.vy = Math.abs(ball.vy);
             pongHitSound('wall');
+            window.__audioEvents.push({ t: frameCount / 60, type: 'wall' });
         }
         if (ball.y + ball.r > H) {
             ball.y = H - ball.r; ball.vy = -Math.abs(ball.vy);
             pongHitSound('wall');
+            window.__audioEvents.push({ t: frameCount / 60, type: 'wall' });
         }
 
         // Left paddle hit
@@ -210,6 +243,7 @@ export function createScene(container) {
                 showCommentary('smash');
                 spawnParticles(ball.x, ball.y, '255,200,100', 8);
                 pongHitSound('smash');
+                window.__audioEvents.push({ t: frameCount / 60, type: 'smash' });
             }
 
             ball.vx = Math.abs(speed * Math.cos(angle));
@@ -217,8 +251,11 @@ export function createScene(container) {
             ball.spin = (hitPos - 0.5) * 2; // #11
             rallyCount++;
             totalRallies++;
-            pongHitSound('paddle');
-            if (!isSmash) { shakeTimer = 3; shakeIntensity = 2 + Math.min(rallyCount, 5); }
+            if (!isSmash) {
+                pongHitSound('paddle');
+                window.__audioEvents.push({ t: frameCount / 60, type: 'paddle' });
+                shakeTimer = 3; shakeIntensity = 2 + Math.min(rallyCount, 5);
+            }
 
             if (rallyCount >= 5 && rallyCount % 3 === 0) showCommentary('rally');
             if (hitPos > 0.35 && hitPos < 0.65 && speed > 10) showCommentary('save');
@@ -245,6 +282,7 @@ export function createScene(container) {
                 showCommentary('smash');
                 spawnParticles(ball.x, ball.y, '255,200,100', 8);
                 pongHitSound('smash');
+                window.__audioEvents.push({ t: frameCount / 60, type: 'smash' });
             }
 
             ball.vx = -Math.abs(speed * Math.cos(angle));
@@ -252,8 +290,11 @@ export function createScene(container) {
             ball.spin = (hitPos - 0.5) * 2;
             rallyCount++;
             totalRallies++;
-            pongHitSound('paddle');
-            if (!isSmash) { shakeTimer = 3; shakeIntensity = 2 + Math.min(rallyCount, 5); }
+            if (!isSmash) {
+                pongHitSound('paddle');
+                window.__audioEvents.push({ t: frameCount / 60, type: 'paddle' });
+                shakeTimer = 3; shakeIntensity = 2 + Math.min(rallyCount, 5);
+            }
 
             if (rallyCount >= 5 && rallyCount % 3 === 0) showCommentary('rally');
         }
@@ -267,6 +308,7 @@ export function createScene(container) {
             pointPauseTimer = 50;
             shakeTimer = 12; shakeIntensity = matchPoint ? 14 : 8;
             pongHitSound('wall');
+            window.__audioEvents.push({ t: frameCount / 60, type: 'score' });
             showCommentary('score');
             scoreFlashSide = 'right'; scoreFlashTimer = 30;
             spawnParticles(0, ball.y, '255,120,100', 20);
@@ -279,6 +321,7 @@ export function createScene(container) {
             pointPauseTimer = 50;
             shakeTimer = 12; shakeIntensity = matchPoint ? 14 : 8;
             pongHitSound('wall');
+            window.__audioEvents.push({ t: frameCount / 60, type: 'score' });
             showCommentary('score');
             scoreFlashSide = 'left'; scoreFlashTimer = 30;
             spawnParticles(W, ball.y, '100,180,255', 20);
@@ -306,7 +349,11 @@ export function createScene(container) {
             ctx.translate((Math.random() - 0.5) * shakeIntensity, (Math.random() - 0.5) * shakeIntensity);
         }
 
-        ctx.fillStyle = '#000';
+        // Random gradient background per theme
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+        bgGrad.addColorStop(0, theme.bg1);
+        bgGrad.addColorStop(1, theme.bg2);
+        ctx.fillStyle = bgGrad;
         ctx.fillRect(-10, -10, W + 20, H + 20);
 
         const progress = Math.min(frameCount / 3600, 1);

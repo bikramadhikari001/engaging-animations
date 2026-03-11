@@ -110,12 +110,26 @@ export function createPhysicsWorld(container) {
     // Render loop — custom canvas drawing (no Matter.js renderer)
     let animFrameId = null;
     let drawCallback = null;
+    let bgTopColor = '#000';
+    let bgBotColor = '#000';
+
+    function setBgGradient(top, bottom) {
+        bgTopColor = top;
+        bgBotColor = bottom;
+    }
 
     function render() {
         ctx.clearRect(0, 0, w, h);
 
-        // Black background
-        ctx.fillStyle = '#000';
+        // Background (gradient if set)
+        if (bgTopColor !== bgBotColor) {
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+            bgGrad.addColorStop(0, bgTopColor);
+            bgGrad.addColorStop(1, bgBotColor);
+            ctx.fillStyle = bgGrad;
+        } else {
+            ctx.fillStyle = bgTopColor;
+        }
         ctx.fillRect(0, 0, w, h);
 
         ctx.save();
@@ -213,7 +227,7 @@ export function createPhysicsWorld(container) {
     return {
         engine, world, canvas, ctx,
         addBall, addRect, addCircle, removeBody, clear,
-        onCollision, start, destroy,
+        onCollision, start, destroy, setBgGradient,
         s, sx, sy, scale,
         CANVAS_W, CANVAS_H,
         Matter, // expose for direct access

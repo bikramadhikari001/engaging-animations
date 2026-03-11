@@ -12,6 +12,24 @@ import Matter from 'matter-js';
 
 const { Composite, Constraint, Body } = Matter;
 
+// ── RANDOMIZATION ──
+const BALL_PALETTES = [
+    { hi: 'rgba(255,255,255,0.95)', mid: 'rgba(200,200,200,0.9)', lo: 'rgba(120,120,120,0.85)', edge: 'rgba(60,60,60,0.8)', trail: '180,180,180', name: 'silver' },
+    { hi: 'rgba(255,230,150,0.95)', mid: 'rgba(220,180,60,0.9)', lo: 'rgba(160,120,30,0.85)', edge: 'rgba(100,70,10,0.8)', trail: '200,170,60', name: 'gold' },
+    { hi: 'rgba(255,200,160,0.95)', mid: 'rgba(200,130,80,0.9)', lo: 'rgba(150,80,40,0.85)', edge: 'rgba(90,50,20,0.8)', trail: '190,120,70', name: 'copper' },
+    { hi: 'rgba(200,220,255,0.95)', mid: 'rgba(140,170,220,0.9)', lo: 'rgba(80,110,160,0.85)', edge: 'rgba(40,60,100,0.8)', trail: '140,170,210', name: 'chrome-blue' },
+    { hi: 'rgba(255,200,210,0.95)', mid: 'rgba(220,150,160,0.9)', lo: 'rgba(180,100,110,0.85)', edge: 'rgba(120,60,70,0.8)', trail: '210,150,160', name: 'rose-gold' },
+    { hi: 'rgba(160,160,180,0.95)', mid: 'rgba(80,80,100,0.9)', lo: 'rgba(40,40,60,0.85)', edge: 'rgba(20,20,30,0.8)', trail: '100,100,120', name: 'obsidian' },
+];
+const BG_COLORS = [
+    { top: '#000308', bot: '#000a18' },   // deep blue
+    { top: '#050008', bot: '#0a0018' },   // deep purple
+    { top: '#000805', bot: '#001810' },   // dark teal
+    { top: '#080005', bot: '#180010' },   // dark wine
+    { top: '#020202', bot: '#080808' },   // near-black
+];
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
 export function createScene(container) {
     const pw = createPhysicsWorld(container);
     const W = pw.CANVAS_W;
@@ -25,6 +43,12 @@ export function createScene(container) {
     const stringLength = 400;
     const barY = cy - stringLength;
     const baseRadius = 46;
+
+    // Per-run visual randomization
+    const ballPalette = pick(BALL_PALETTES);
+    const bgTheme = pick(BG_COLORS);
+    pw.setBgGradient(bgTheme.top, bgTheme.bot);
+    const pullAngle = -(Math.PI / 3.5 + Math.random() * 0.3);  // varies starting energy
 
     // Slight imperfection per ball
     const ballData = [];
@@ -74,7 +98,6 @@ export function createScene(container) {
     let pullPhase = true;
     let pullProgress = 0;
     const pullDuration = 90;
-    const pullAngle = -Math.PI / 3.2;
     const firstBall = balls[0].ball;
     const firstPivotX = balls[0].pivotX;
     const firstPivotY = balls[0].pivotY;
@@ -242,7 +265,7 @@ export function createScene(container) {
                     const trailR = radius * (0.7 + (t / history.length) * 0.3);
                     ctx.beginPath();
                     ctx.arc(history[t].x, history[t].y, trailR, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(180,180,180,${alpha})`;
+                    ctx.fillStyle = `rgba(${ballPalette.trail},${alpha})`;
                     ctx.fill();
                 }
             }
@@ -252,10 +275,10 @@ export function createScene(container) {
                 bx - radius * 0.3, by - radius * 0.3, radius * 0.05,
                 bx, by, radius
             );
-            grad.addColorStop(0, 'rgba(255,255,255,0.95)');
-            grad.addColorStop(0.3, 'rgba(200,200,200,0.9)');
-            grad.addColorStop(0.7, 'rgba(120,120,120,0.85)');
-            grad.addColorStop(1.0, 'rgba(60,60,60,0.8)');
+            grad.addColorStop(0, ballPalette.hi);
+            grad.addColorStop(0.3, ballPalette.mid);
+            grad.addColorStop(0.7, ballPalette.lo);
+            grad.addColorStop(1.0, ballPalette.edge);
 
             ctx.beginPath();
             ctx.arc(bx, by, radius, 0, Math.PI * 2);
